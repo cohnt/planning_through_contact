@@ -45,9 +45,10 @@ rrt_params = IrsRrtProjectionParams(q_model_path, joint_limits)
 rrt_params.smoothing_mode = SmoothingMode.k1AnalyticPyramid
 rrt_params.log_barrier_weight_for_bundling = 100
 rrt_params.root_node = IrsNode(x0)
-rrt_params.max_size = 500
+rrt_params.max_size = 100000
 rrt_params.goal = np.copy(x0)
 rrt_params.goal[1] = -0.5
+rrt_params.goal[2] = 5*np.pi/4
 rrt_params.termination_tolerance = 0.1
 rrt_params.goal_as_subgoal_prob = 0.1
 rrt_params.grasp_prob = 0.2
@@ -61,12 +62,6 @@ rrt_params.global_metric = np.array([20, 20, 20, 1e-3, 1e-3])
 
 prob_rrt = IrsRrtProjection(rrt_params, contact_sampler, q_sim, q_sim_py)
 prob_rrt.iterate()
-
-d_batch = prob_rrt.calc_distance_batch(rrt_params.goal)
-print("minimum distance: ", d_batch.min())
-
-# %%
-node_id_closest = np.argmin(d_batch)
 
 # %%
 prob_rrt.save_tree(f"tree_{rrt_params.max_size}_{0}.pkl")

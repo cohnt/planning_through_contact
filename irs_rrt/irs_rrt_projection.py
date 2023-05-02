@@ -41,8 +41,21 @@ class IrsRrtProjection(IrsRrt):
         None is returned if the distances of all nodes are greater than
          d_treshold.
         """
-        d_batch = self.calc_distance_batch(subgoal)
-        i_min = np.argmin(d_batch)
+        symmetries = [0, np.pi/2, np.pi, -np.pi/2, -np.pi]
+        # symmetries = [0]
+        best_symmetry = 0
+        best_dist = np.inf
+        best_i = -1
+        for symmetry in symmetries:
+            subgoal_symmetry = subgoal.copy()
+            subgoal_symmetry[2] += symmetry
+            d_batch = self.calc_distance_batch(subgoal_symmetry)
+            i_min = np.argmin(d_batch)
+            if d_batch[i_min] < best_dist:
+                best_i = i_min
+                best_idst = d_batch[i_min]
+                best_symmetry = symmetry
+        i_min = best_i
         if d_batch[i_min] < d_threshold:
             selected_node = self.get_node_from_id(i_min)
             if print_distance:
@@ -50,7 +63,7 @@ class IrsRrtProjection(IrsRrt):
         else:
             selected_node = None
 
-        return selected_node
+        return selected_node, best_symmetry
 
     def iterate(self):
         """
@@ -67,7 +80,7 @@ class IrsRrtProjection(IrsRrt):
                 subgoal = self.sample_subgoal()
 
             # 2. Sample closest node to subgoal
-            parent_node = self.select_closest_node(
+            parent_node, symmetry = self.select_closest_node(
                 subgoal, d_threshold=self.rrt_params.distance_threshold
             )
             if parent_node is None:
@@ -76,7 +89,9 @@ class IrsRrtProjection(IrsRrt):
 
             # 3. Extend to subgoal.
             try:
-                child_node, edge = self.extend(parent_node, subgoal)
+                foo = subgoal.copy()
+                foo[2] += symmetry
+                child_node, edge = self.extend(parent_node, foo)
             except RuntimeError:
                 continue
 
@@ -100,9 +115,16 @@ class IrsRrtProjection(IrsRrt):
             self.add_edge(edge)
 
             # 6. Check for termination.
-            if self.is_close_to_goal():
+            dists = []
+            for symmetry in [0, np.pi/2, np.pi, -np.pi/2, -np.pi]:
+            # for symmetry in [0]:
+                foo = self.rrt_params.goal.copy()
+                foo[2] += symmetry
+                dists.append(np.min(self.calc_distance_batch(foo)))
+            if np.min(dists) < self.rrt_params.termination_tolerance:
                 self.goal_node_idx = child_node.id
                 print("FOUND A PATH TO GOAL!!!!!")
+                print("Distance: %f" % np.min(dists))
                 break
 
         pbar.close()
