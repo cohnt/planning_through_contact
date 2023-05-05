@@ -32,7 +32,7 @@ idx_u = plant.GetModelInstanceByName(object_name)
 contact_sampler = PlanarPushingContactSampler(
     q_sim=q_sim, q_sim_py=q_sim_py)
 
-q_u0 = np.array([0.0, 0.5, 0])
+q_u0 = np.array([0.0, 0, -np.pi/3])
 x0 = contact_sampler.sample_contact(q_u0)
 
 joint_limits = {
@@ -48,7 +48,7 @@ rrt_params.root_node = IrsNode(x0)
 rrt_params.max_size = 100000
 rrt_params.goal = np.copy(x0)
 rrt_params.goal[1] = -0.5
-rrt_params.goal[2] = 5*np.pi/4
+rrt_params.goal[2] = np.pi
 rrt_params.termination_tolerance = 0.1
 rrt_params.goal_as_subgoal_prob = 0.1
 rrt_params.grasp_prob = 0.2

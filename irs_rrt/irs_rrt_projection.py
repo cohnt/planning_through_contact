@@ -41,8 +41,9 @@ class IrsRrtProjection(IrsRrt):
         None is returned if the distances of all nodes are greater than
          d_treshold.
         """
-        symmetries = [0, np.pi/2, np.pi, -np.pi/2, -np.pi]
-        # symmetries = [0]
+        # symmetries = [0, np.pi/2, np.pi, -np.pi/2, -np.pi]
+        symmetries = [0]
+        # symmetries = [0, 2*np.pi/3, -2*np.pi/3]
         best_symmetry = 0
         best_dist = np.inf
         best_i = -1
@@ -80,52 +81,58 @@ class IrsRrtProjection(IrsRrt):
                 subgoal = self.sample_subgoal()
 
             # 2. Sample closest node to subgoal
-            parent_node, symmetry = self.select_closest_node(
-                subgoal, d_threshold=self.rrt_params.distance_threshold
-            )
-            if parent_node is None:
-                continue
-            # update progress only if a valid parent_node is chosen.
-
-            # 3. Extend to subgoal.
-            try:
+            # for symmetry in [0, 2*np.pi/3, -2*np.pi/3]:
+            for symmetry in [0]:
                 foo = subgoal.copy()
                 foo[2] += symmetry
-                child_node, edge = self.extend(parent_node, foo)
-            except RuntimeError:
-                continue
-
-            # 4. Attempt to rewire a candidate child node.
-            if self.rrt_params.rewire:
-                parent_node, child_node, edge = self.rewire(
-                    parent_node, child_node
+                parent_node, _ = self.select_closest_node(
+                    foo, d_threshold=self.rrt_params.distance_threshold
                 )
+                if parent_node is None:
+                    continue
+                # update progress only if a valid parent_node is chosen.
 
-            # 5. Register the new node to the graph.
-            try:
-                # Drawing every new node in meshcat seems to slow down
-                #  tree building by quite a bit.
-                self.add_node(child_node, draw_node=self.size % 3 == 0)
-            except RuntimeError as e:
-                print(e)
-                continue
-            pbar.update(1)
+                # 3. Extend to subgoal.
+                try:
+                    child_node, edge = self.extend(parent_node, foo)
+                except RuntimeError:
+                    continue
 
-            child_node.value = parent_node.value + edge.cost
-            self.add_edge(edge)
+                # 4. Attempt to rewire a candidate child node.
+                if self.rrt_params.rewire:
+                    parent_node, child_node, edge = self.rewire(
+                        parent_node, child_node
+                    )
 
-            # 6. Check for termination.
-            dists = []
-            for symmetry in [0, np.pi/2, np.pi, -np.pi/2, -np.pi]:
-            # for symmetry in [0]:
-                foo = self.rrt_params.goal.copy()
-                foo[2] += symmetry
-                dists.append(np.min(self.calc_distance_batch(foo)))
-            if np.min(dists) < self.rrt_params.termination_tolerance:
-                self.goal_node_idx = child_node.id
-                print("FOUND A PATH TO GOAL!!!!!")
-                print("Distance: %f" % np.min(dists))
-                break
+                # 5. Register the new node to the graph.
+                try:
+                    # Drawing every new node in meshcat seems to slow down
+                    #  tree building by quite a bit.
+                    self.add_node(child_node, draw_node=self.size % 3 == 0)
+                except RuntimeError as e:
+                    print(e)
+                    continue
+                pbar.update(1)
+
+                child_node.value = parent_node.value + edge.cost
+                self.add_edge(edge)
+
+                # 6. Check for termination.
+                dists = []
+                # for symmetry in [0, np.pi/2, np.pi, -np.pi/2, -np.pi]:
+                for symmetry in [0]:
+                # for symmetry in [0, 2*np.pi/3, -2*np.pi/3]:
+                    foo = self.rrt_params.goal.copy()
+                    foo[2] += symmetry
+                    dists.append(np.min(self.calc_distance_batch(foo)))
+                if np.min(dists) < self.rrt_params.termination_tolerance:
+                    self.goal_node_idx = child_node.id
+                    # self.goal[2] += symmetry
+                    print("FOUND A PATH TO GOAL!!!!!")
+                    print("Distance: %f" % np.min(dists))
+                    
+                    pbar.close()
+                    return
 
         pbar.close()
 
